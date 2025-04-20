@@ -1,12 +1,36 @@
 #!/bin/bash
 
-# Load settings
 source ./config/settings.sh
 
-# Define the motion detection script
 MOTION_SCRIPT="./motion/motion_server.py"
 
-# Start or reload NGINX
+cleanup() {
+  echo -e "\n[+] Cleaning up..."
+
+  if [[ -n "$MOTION_PID" ]]; then
+    echo "[*] Killing motion detection (PID: $MOTION_PID)..."
+    kill "$MOTION_PID" 2>/dev/null
+  fi
+
+  if [[ -n "$FFMPEG_PID" ]]; then
+    echo "[*] Killing FFmpeg (PID: $FFMPEG_PID)..."
+    kill "$FFMPEG_PID" 2>/dev/null
+  fi
+
+  echo "[+] Cleanup complete. Exiting."
+  exit 0
+}
+
+trap cleanup SIGINT SIGTERM EXIT
+
+if pgrep nginx > /dev/null; then
+  echo "[*] NGINX is already running. Reloading config..."
+  sudo nginx -s reload -p "$(pwd)/nginx" -c nginx.conf
+else
+  echo "[+] Starting NGINX..."
+  sudo nginx -p "$(pwd)/nginx" -c nginx.conf
+fi
+
 if pgrep nginx > /dev/null; then
   echo "[*] NGINX is already running. Reloading config..."
   sudo systemctl restart nginx
@@ -18,7 +42,6 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
-# Start streaming
 ffmpeg -f v4l2 -framerate 15 -video_size 640x360 -i "$VIDEO_DEVICE" \
        -f alsa -i "$AUDIO_DEVICE" \
        -c:v libx264 -preset ultrafast -tune zerolatency \
@@ -39,24 +62,17 @@ ffmpeg -f v4l2 -framerate 15 -video_size 640x360 -i "$VIDEO_DEVICE" \
 
 FFMPEG_PID=$!
 
-sleep 15
+sleep 10
 
-# Start motion detection
 echo "[+] Starting motion detection..."
 python3 ./motion/motion_server.py &
 
 MOTION_PID=$!
+sleep 5
 
-# Give a few seconds for everything to start up
-sleep 3
-
-# Open browser to the app
 echo "[+] Opening browser to http://localhost:8000"
 xdg-open "http://localhost:8000" &>/dev/null || open "http://localhost:8000"
 
-# Wait for FFmpeg process to end
 wait $FFMPEG_PID
 
-# Cleanup on exit
 echo "[+] Cleaning up..."
-kill $MOTION_PID 2>/dev/null

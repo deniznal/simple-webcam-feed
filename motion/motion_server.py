@@ -1,11 +1,10 @@
 import eventlet
-eventlet.monkey_patch()  # Make sure to do this before anything else
+eventlet.monkey_patch()
 
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 from flask_cors import CORS
 import cv2
-import numpy as np
 import time
 
 app = Flask(__name__)
@@ -13,7 +12,6 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Motion detection logic
 def detect_motion(frame, previous_frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     gray = cv2.GaussianBlur(gray, (21, 21), 0)
@@ -33,21 +31,18 @@ def detect_motion(frame, previous_frame):
 
     return False, gray
 
-# Handle motion alert
 def handle_motion_alert():
     socketio.emit('motion_detected', {'message': 'Motion detected!'})
 
-# Route to render the HTML page
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# Video feed capturing and motion detection
 def main():
     cap = cv2.VideoCapture("http://localhost:8000/dash/manifest.mpd")
 
     previous_frame = None
-    frame_rate = 15  # Adjust this according to the actual frame rate of your video stream
+    frame_rate = 15
 
     while True:
         start_time = time.time()
@@ -61,21 +56,16 @@ def main():
         if motion_detected:
             handle_motion_alert()
 
-        #cv2.imshow('Video Feed', frame)
-
         elapsed_time = time.time() - start_time
-        wait_time = max(1.0 / frame_rate - elapsed_time, 0)  # Adjust sleep time based on frame rate
+        wait_time = max(1.0 / frame_rate - elapsed_time, 0)
         time.sleep(wait_time)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-        
-
     cap.release()
     cv2.destroyAllWindows()
 
-# Main eventlet greenlet
 def start_video_thread():
     socketio.start_background_task(main)
 

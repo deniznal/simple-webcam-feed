@@ -1,3 +1,5 @@
 dash/
 nginx/logs/access.log
 nginx/logs/error.log
+report.pdf
+.~lock.report.odt#

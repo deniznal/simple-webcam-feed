@@ -22,44 +22,38 @@
   <div>
     <label for="rewindTime">Rewind to (seconds):</label>
     <input id="rewindTime" type="number" value="10" min="1" style="width: 60px; padding: 0.3em; font-size: 0.9em;">  
-    <button onclick="rewind()">⏪ Rewind</button>
+    <button onclick="rewind()">Rewind</button>
     <button onclick="pauseVideo()">⏸️</button>
     <button onclick="playVideo()">▶️</button>
-    <button onclick="goLive()">🔴 Play live</button>
+    <button onclick="goLive()">Play live</button>
   </div>
 
-  <button onclick="screenshot()">📸 Screenshot</button>
+  <button onclick="screenshot()">Screenshot</button>
 
-  <!-- Motion alert -->
   <div id="motionAlert" class="alert" style="display: none;">
-    Motion Detected! 🚨
+    Motion Detected!
   </div>
 
-  <!-- Latency display -->
   <div id="latencyInfo" class="latency">
     Latency: <span id="latencyValue">Calculating...</span> seconds
   </div>
 
-  <!-- Audio element for motion sound -->
   <audio id="motionSound" src="ToSquidMix00.wav" preload="auto"></audio>
 
   <script>
-    const url = "/dash/manifest.mpd";  // URL for the DASH stream
+    const url = "/dash/manifest.mpd";
     const player = dashjs.MediaPlayer().create();
     const video = document.getElementById("videoPlayer");
     player.initialize(video, url, true);
 
-    // WebSocket setup
     const socket = io.connect('http://localhost:5000/');
 
     let alertTimeout = null;
 
-    // Handle motion detected
     socket.on('motion_detected', () => {
       const alertBox = document.getElementById('motionAlert');
       alertBox.style.display = 'block';
 
-      // Play sound
       const sound = document.getElementById('motionSound');
       sound.play();
 
@@ -70,7 +64,6 @@
       }, 3000);
     });
 
-    // Latency tracking
     function updateLatency() {
       const latencyValue = document.getElementById('latencyValue');
       const liveLatency = player.getCurrentLiveLatency();
@@ -86,7 +79,6 @@
     }
     setInterval(updateLatency, 1000);
 
-    // Rewind function
     function rewind() {
       const rewindTime = document.getElementById("rewindTime").value;
       video.currentTime = Math.max(0, video.currentTime - rewindTime);
@@ -104,7 +96,6 @@
       video.currentTime = video.seekable.end(0);
     }
 
-    // Screenshot
     function screenshot() {
       const canvas = document.createElement("canvas");
       canvas.width = video.videoWidth;
