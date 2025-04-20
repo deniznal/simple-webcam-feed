@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Live Stream</title>
+  <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@3.1.3/dist/socket.io.min.js"></script>
+
+  <style>
+    body { font-family: sans-serif; background: #111; color: #eee; text-align: center; padding: 2em; }
+    video { max-width: 500px; border: 2px solid #555; }
+    button { margin: 1em 0.5em; padding: 0.5em 1em; }
+    input[type="number"] { padding: 0.5em; margin-top: 1em; }
+    .alert { color: red; font-weight: bold; margin-top: 1em; }
+    .latency { color: cyan; font-weight: normal; margin-top: 0.5em; }
+  </style>
+</head>
+<body>
+  <h1>You are now watching Deniz's webcam</h1>
+  <video id="videoPlayer" controls autoplay muted></video>
+
+  <div>
+    <label for="rewindTime">Rewind to (seconds):</label>
+    <input id="rewindTime" type="number" value="10" min="1" style="width: 60px; padding: 0.3em; font-size: 0.9em;">  
+    <button onclick="rewind()">⏪ Rewind</button>
+    <button onclick="pauseVideo()">⏸️</button>
+    <button onclick="playVideo()">▶️</button>
+    <button onclick="goLive()">🔴 Play live</button>
+  </div>
+
+  <button onclick="screenshot()">📸 Screenshot</button>
+
+  <!-- Motion alert -->
+  <div id="motionAlert" class="alert" style="display: none;">
+    Motion Detected! 🚨
+  </div>
+
+  <!-- Latency display -->
+  <div id="latencyInfo" class="latency">
+    Latency: <span id="latencyValue">Calculating...</span> seconds
+  </div>
+
+  <!-- Audio element for motion sound -->
+  <audio id="motionSound" src="ToSquidMix00.wav" preload="auto"></audio>
+
+  <script>
+    const url = "/dash/manifest.mpd";  // URL for the DASH stream
+    const player = dashjs.MediaPlayer().create();
+    const video = document.getElementById("videoPlayer");
+    player.initialize(video, url, true);
+
+    // WebSocket setup
+    const socket = io.connect('http://localhost:5000/');
+
+    let alertTimeout = null;
+
+    // Handle motion detected
+    socket.on('motion_detected', () => {
+      const alertBox = document.getElementById('motionAlert');
+      alertBox.style.display = 'block';
+
+      // Play sound
+      const sound = document.getElementById('motionSound');
+      sound.play();
+
+      if (alertTimeout) clearTimeout(alertTimeout);
+      alertTimeout = setTimeout(() => {
+        alertBox.style.display = 'none';
+        alertTimeout = null;
+      }, 3000);
+    });
+
+    // Latency tracking
+    function updateLatency() {
+      const latencyValue = document.getElementById('latencyValue');
+      const liveLatency = player.getCurrentLiveLatency();
+      let latency = liveLatency;
+
+      if (isNaN(latency)) {
+        const currentTime = video.currentTime;
+        const liveEdge = player.getLiveEdge ? player.getLiveEdge() : null;
+        latency = liveEdge ? liveEdge - currentTime : 0;
+      }
+
+      latencyValue.textContent = latency.toFixed(2);
+    }
+    setInterval(updateLatency, 1000);
+
+    // Rewind function
+    function rewind() {
+      const rewindTime = document.getElementById("rewindTime").value;
+      video.currentTime = Math.max(0, video.currentTime - rewindTime);
+    }
+
+    function pauseVideo() {
+      video.pause();
+    }
+
+    function playVideo() {
+      video.play();
+    }
+
+    function goLive() {
+      video.currentTime = video.seekable.end(0);
+    }
+
+    // Screenshot
+    function screenshot() {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const link = document.createElement("a");
+      link.download = "screenshot.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    }
+  </script>
+</body>
+</html>

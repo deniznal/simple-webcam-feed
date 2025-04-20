@@ -1,0 +1,1 @@
+This is a simple web application that lets you monitor your webcam and be notified of any movements.
